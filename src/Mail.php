@@ -94,7 +94,7 @@ class Mail
                 return false;
             }
         }
-        return false;
+        return $this->processEmail($email);
     }
 
     /**
