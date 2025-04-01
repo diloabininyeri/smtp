@@ -2,6 +2,9 @@
 
 namespace Zeus\Email;
 
+use Closure;
+use Throwable;
+
 /**
  *
  */
@@ -22,6 +25,13 @@ class Mail
      */
     private ?string $from = null;
 
+    private static ?string $forceTo = null;
+
+    private ?Closure $beforeClosure = null;
+
+    private ?Closure $afterClosure = null;
+
+    private ?string $logFile = null;
 
     /**
      * @param string $to
@@ -55,7 +65,7 @@ class Mail
      */
     public static function to(string $email): self
     {
-        return new static($email);
+        return new static(static::$forceTo ?: $email);
     }
 
     /**
@@ -74,15 +84,17 @@ class Mail
      */
     public function send(EmailInterface $email): bool
     {
-        $emailBuilder = new EmailBuilder();
-        $emailBuilder->setSenderEmail($this->from);
-        $emailBuilder->setReceiverEmail($this->to);
-        $email->build($emailBuilder);
-        $this->commandSender->sendCommandAndGetResponse("MAIL FROM:<$this->from>");
-        $this->commandSender->sendCommandAndGetResponse("RCPT TO:<$this->to>");
-        $this->commandSender->sendCommandAndGetResponse("DATA");
-        $response= $this->commandSender->sendCommandAndGetResponse($emailBuilder->build($this->from,$this->to));
-        return $this->isSuccessResponse($response);
+        if ($this->logFile) {
+            try {
+                return $this->processEmail($email);
+            } catch (Throwable $e) {
+                $trace = $e->getTrace()[0];
+                error_log($e->getMessage() . PHP_EOL, 3, $this->logFile);
+                error_log("File : {$trace['file']} ,line :{$trace['line']}" . PHP_EOL, 3, $this->logFile);
+                return false;
+            }
+        }
+        return false;
     }
 
     /**
@@ -93,5 +105,59 @@ class Mail
     {
         // SMTP success responses start with 2 (e.g., 250)
         return !empty($response) && str_starts_with(trim($response), '2');
+    }
+
+    public function beforeSend(Closure $closure): self
+    {
+        $this->beforeClosure = $closure;
+        return $this;
+    }
+
+    /**
+     * @param Closure $closure
+     * @return $this
+     */
+    public function afterSend(Closure $closure): self
+    {
+        $this->afterClosure = $closure;
+        return $this;
+    }
+
+    /**
+     * @param string $email
+     * @return void
+     */
+    public static function forceTo(string $email): void
+    {
+        static::$forceTo = $email;
+    }
+
+    public function logTo(string $logFile): self
+    {
+        $this->logFile = $logFile;
+        return $this;
+    }
+
+    /**
+     * @param EmailInterface $email
+     * @return bool
+     */
+    private function processEmail(EmailInterface $email): bool
+    {
+        $emailBuilder = new EmailBuilder();
+        $emailBuilder->setSenderEmail($this->from);
+        $emailBuilder->setReceiverEmail(static::$forceTo ?: $this->to);
+        $email->build($emailBuilder);
+        if ($this->beforeClosure) {
+            ($this->beforeClosure)($emailBuilder);
+        }
+        $this->commandSender->sendCommandAndGetResponse("MAIL FROM:<$this->from>");
+        $this->commandSender->sendCommandAndGetResponse("RCPT TO:<$this->to>");
+        $this->commandSender->sendCommandAndGetResponse("DATA");
+        $response = $this->commandSender->sendCommandAndGetResponse($emailBuilder->build($this->from, $this->to));
+        if ($response) {
+            ($this->afterClosure)();
+        }
+        return $this->isSuccessResponse($response);
     }
 }
