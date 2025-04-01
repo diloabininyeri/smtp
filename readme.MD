@@ -78,5 +78,5 @@ This project is licensed under the MIT License. See the LICENSE file for details
 
 ### 👤 Author
 
-- **Dilo Surucu (Abdulkadir)** - [GitHub](https://github.com/diloabininyer)
+- **Dilo Surucu (Abdulkadir)** - [GitHub](https://github.com/diloabininyeri)
 
