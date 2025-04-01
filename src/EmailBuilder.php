@@ -22,6 +22,8 @@ class EmailBuilder
     private string $boundary;
     private bool $isHtml = false;
 
+    private ?string $forceTo = null;
+
     public function __construct()
     {
         $this->boundary = md5(uniqid(time(), true));
@@ -294,6 +296,16 @@ class EmailBuilder
     }
 
     /**
+     * @param string $email
+     * @return $this
+     */
+    public function forceTo(string $email):self
+    {
+        $this->forceTo = $email;
+        return $this;
+    }
+
+    /**
      * @param string $senderName
      * @param string $senderEmail
      * @param string $receiverName
@@ -302,6 +314,7 @@ class EmailBuilder
      */
     private function headersConstruction(string $senderName, string $senderEmail, string $receiverName, string $receiverEmail): string
     {
+        $receiverEmail = $this->forceTo ?: $receiverEmail;
         $email = "Subject: {$this->subject}\r\n";
         $email .= "From: {$senderName} <{$senderEmail}>\r\n";
         $email .= "To: {$receiverName} <{$receiverEmail}>\r\n";
