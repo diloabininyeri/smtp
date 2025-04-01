@@ -22,25 +22,23 @@ $smtpAuthenticator = new SmtpAuthenticator(
     ]
 );
 
+Mail::setSmtpAuthenticator($smtpAuthenticator);
 
 
-$sender = new CommandSender($smtpAuthenticator);
+class WelcomeMail implements EmailInterface
+{
+    public function build(EmailBuilder $builder): void
+    {
+        $builder->addHeader("Content-Type", "text/html; charset=UTF-8");
+        $builder->setSubject("Welcome to Our Website {$builder->getReceiverEmail()}");
+        $builder->setBody('<h2>test message</h2>');
+    }
+}
 
 
-$sender->sendCommandAndGetResponse("MAIL FROM:<berxudar@gmail.com>");
-$sender->sendCommandAndGetResponse("RCPT TO:<berxudar@gmail.com>");
-
-$sender->sendCommandAndGetResponse("DATA");
-
-$email = "Subject: Test Email\r\n";
-$email .= "From: Berxudar <berxudar@gmail.com>\r\n";
-$email .= "To: Berxudar <berxudar@gmail.com>\r\n";
-$email .= "\r\n"; // Başlıklar ve gövde arasındaki boş satır
-$email .= "This is a test email message body.\r\n";
-$email .= ".\r\n"; //The point is a necessity and defines termination
-
-$response = $sender->sendCommandAndGetResponse($email);
-echo "Email sending response: " . $response . "\n";
+Mail::to('berxudar@gmail.com')
+    ->from('berxudar@gmail.com')
+    ->send(new WelcomeMail());
 
 
 ```
