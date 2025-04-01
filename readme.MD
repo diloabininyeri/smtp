@@ -1,4 +1,18 @@
-### php smtp client
+## Zeus Email - PHP SMTP Client
+
+A lightweight and efficient email handling library for PHP, providing SMTP, IMAP, and POP3 support.
+
+### 📥 Installation
+
+Install the package via Composer:
+
+```sh
+composer require zeus/email
+```
+
+### 🔧 Configuration
+
+Set up the SMTP authenticator:
 
 ```php
 <?php
@@ -22,23 +36,47 @@ $smtpAuthenticator = new SmtpAuthenticator(
     ]
 );
 
-Mail::setSmtpAuthenticator($smtpAuthenticator);
+Mail::setSmtpAuthenticator($smtpAuthenticator); // Set it once
+```
 
+### 📩 Sending an Email
 
+Define your email class:
+
+```php
 class WelcomeMail implements EmailInterface
 {
     public function build(EmailBuilder $builder): void
     {
-        $builder->addHeader("Content-Type", "text/html; charset=UTF-8");
-        $builder->setSubject("Welcome to Our Website {$builder->getReceiverEmail()}");
-        $builder->setBody('<h2>test message</h2>');
+        $builder->setSubject("Welcome to Our Website");
+        $builder->setHtmlBody('<html><body><h1>Welcome!</h1><p>This is a test email with an attachment.</p></body></html>');
+        $builder->addCc('cc@example.com');
+        $builder->addBcc('bcc@example.com');
+        $builder->setReplyTo('berxudar@gmail.com');
+        $builder->addAttachment(__FILE__);
     }
 }
+```
 
+### 📤 Sending the Email
 
-Mail::to('berxudar@gmail.com')
+```php
+$response = Mail::to('aslan@gmail.com')
     ->from('berxudar@gmail.com')
     ->send(new WelcomeMail());
 
-
+if ($response) {
+    echo "✅ Email sent successfully";
+} else {
+    echo "❌ Failed to send email";
+}
 ```
+
+### 📜 License
+
+This project is licensed under the MIT License. See the LICENSE file for details.
+
+### 👤 Author
+
+- **Dilo Surucu (Abdulkadir)** - [GitHub](https://github.com/diloabininyer)
+

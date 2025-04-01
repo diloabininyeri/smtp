@@ -1,12 +1,17 @@
 {
   "name": "zeus/email",
-  "description": "description",
+  "description": "A lightweight and efficient email handling library for PHP, providing SMTP, IMAP, and POP3 support.",
+  "keywords": ["email", "SMTP", "IMAP", "POP3", "mail", "PHP"],
+  "homepage": "https://github.com/diloabininyeri/smtp",
+  "type": "library",
   "minimum-stability": "stable",
   "license": "MIT",
   "authors": [
     {
-      "name": "DILO SURUCU(ABDULKADIR)",
-      "email": "berxudar@gmail.com"
+      "name": "DILO SURUCU (ABDULKADIR)",
+      "email": "berxudar@gmail.com",
+      "homepage": "https://github.com/diloabininyeri",
+      "role": "Developer"
     }
   ],
   "autoload": {
