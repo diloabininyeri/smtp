@@ -72,6 +72,23 @@ if ($response) {
 }
 ```
 
+and extra features
+```php
+
+$mail = Mail::to('aslan@gmail.com');
+
+$mail->from('berxudar@gmail.com')
+    ->logTo(__DIR__ . '/email.log')
+    ->beforeSend(function (EmailBuilder $builder) {
+        $builder->addCc('test@gmail.com');
+    })
+    ->afterSend(function () {
+        //trigger an event
+    })
+    ->send(new WelcomeMail());
+
+```
+
 ### 📜 License
 
 This project is licensed under the MIT License. See the LICENSE file for details.
