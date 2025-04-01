@@ -15,6 +15,7 @@
     }
   },
   "require": {
-    "ext-sockets": "*"
+    "ext-sockets": "*",
+    "ext-fileinfo": "*"
   }
 }

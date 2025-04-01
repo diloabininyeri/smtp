@@ -3,6 +3,8 @@
 namespace Zeus\Email;
 
 
+use InvalidArgumentException;
+
 class EmailBuilder
 {
     private string $subject = '';
@@ -22,7 +24,7 @@ class EmailBuilder
 
     public function __construct()
     {
-        $this->boundary = md5(uniqid(time()));
+        $this->boundary = md5(uniqid(time(), true));
     }
 
     public function setSubject(string $subject): self
@@ -50,15 +52,15 @@ class EmailBuilder
         return $this;
     }
 
-    public function addAttachment(string $filePath, string $fileName = null): self
+    public function addAttachment(string $filePath, ?string $fileName = null): self
     {
         if (!file_exists($filePath)) {
-            throw new \InvalidArgumentException("File does not exist: $filePath");
+            throw new InvalidArgumentException("File does not exist: $filePath");
         }
 
         $this->attachments[] = [
             'path' => $filePath,
-            'name' => $fileName ?? basename($filePath)
+            'name' => $fileName ?: basename($filePath)
         ];
 
         return $this;
@@ -136,54 +138,57 @@ class EmailBuilder
         return $this;
     }
 
-    public function build(string $from = null, string $to = null): string
+    public function build(?string $from = null, ?string $to = null): string
     {
         $senderEmail = $from ?? $this->senderEmail;
         $receiverEmail = $to ?? $this->receiverEmail;
 
         if (empty($senderEmail) || empty($receiverEmail)) {
-            throw new \InvalidArgumentException("Sender and receiver emails must be set");
+            throw new InvalidArgumentException("Sender and receiver emails must be set");
         }
 
-        $senderName = !empty($this->senderName) ? $this->senderName : 'Sender';
-        $receiverName = !empty($this->receiverName) ? $this->receiverName : 'Receiver';
+        $senderName = $this->senderName ?: 'Sender';
+        $receiverName = $this->receiverName ?: 'Receiver';
 
-        // Headers construction
-        $email = "Subject: {$this->subject}\r\n";
-        $email .= "From: {$senderName} <{$senderEmail}>\r\n";
-        $email .= "To: {$receiverName} <{$receiverEmail}>\r\n";
+        $email = $this->headersConstruction($senderName, $senderEmail, $receiverName, $receiverEmail);
 
-        // Add CC recipients
-        if (!empty($this->cc)) {
-            $ccList = [];
-            foreach ($this->cc as $recipient) {
-                $name = !empty($recipient['name']) ? $recipient['name'] : '';
-                $ccList[] = !empty($name) ? "$name <{$recipient['email']}>" : $recipient['email'];
-            }
-            $email .= "Cc: " . implode(', ', $ccList) . "\r\n";
+        $email = $this->addCCRecipients($email);
+        $email = $this->addBCCRecipients($email);
+        $email = $this->addReplyToHeader($email);
+        $email = $this->addCustomHeaders($email);
+
+        $email = $this->handleAttachmentsWithMIME($email);
+
+        $email .= ".\r\n"; // Termination mark
+
+        return $email;
+    }
+
+    // Method chaining helper for setting sender and receiver in one go
+    public function from(string $email, string $name = ''): self
+    {
+        $this->setSenderEmail($email);
+        if (!empty($name)) {
+            $this->setSenderName($name);
         }
+        return $this;
+    }
 
-        // Add BCC recipients
-        if (!empty($this->bcc)) {
-            $bccList = [];
-            foreach ($this->bcc as $recipient) {
-                $name = !empty($recipient['name']) ? $recipient['name'] : '';
-                $bccList[] = !empty($name) ? "$name <{$recipient['email']}>" : $recipient['email'];
-            }
-            $email .= "Bcc: " . implode(', ', $bccList) . "\r\n";
+    public function to(string $email, string $name = ''): self
+    {
+        $this->setReceiverEmail($email);
+        if (!empty($name)) {
+            $this->setReceiverName($name);
         }
+        return $this;
+    }
 
-        // Add Reply-To header
-        if (!empty($this->replyTo)) {
-            $email .= "Reply-To: {$this->replyTo}\r\n";
-        }
-
-        // Add custom headers
-        foreach ($this->headers as $key => $value) {
-            $email .= "$key: $value\r\n";
-        }
-
-        // Handle attachments with MIME
+    /**
+     * @param string $email
+     * @return string
+     */
+    private function handleAttachmentsWithMIME(string $email): string
+    {
         if (!empty($this->attachments)) {
             $email .= "MIME-Version: 1.0\r\n";
             $email .= "Content-Type: multipart/mixed; boundary=\"{$this->boundary}\"\r\n";
@@ -227,28 +232,79 @@ class EmailBuilder
             $email .= "\r\n";
             $email .= "{$this->body}\r\n";
         }
-
-        $email .= ".\r\n"; // Termination mark
-
         return $email;
     }
 
-    // Method chaining helper for setting sender and receiver in one go
-    public function from(string $email, string $name = ''): self
+    /**
+     * @param string $email
+     * @return string
+     */
+    private function addCustomHeaders(string $email): string
     {
-        $this->setSenderEmail($email);
-        if (!empty($name)) {
-            $this->setSenderName($name);
+        foreach ($this->headers as $key => $value) {
+            $email .= "$key: $value\r\n";
         }
-        return $this;
+        return $email;
     }
 
-    public function to(string $email, string $name = ''): self
+    /***
+     * @param string $email
+     * @return string
+     */
+    private function addBCCRecipients(string $email): string
     {
-        $this->setReceiverEmail($email);
-        if (!empty($name)) {
-            $this->setReceiverName($name);
+        if (!empty($this->bcc)) {
+            $bccList = [];
+            foreach ($this->bcc as $recipient) {
+                $name = !empty($recipient['name']) ? $recipient['name'] : '';
+                $bccList[] = !empty($name) ? "$name <{$recipient['email']}>" : $recipient['email'];
+            }
+            $email .= "Bcc: " . implode(', ', $bccList) . "\r\n";
         }
-        return $this;
+        return $email;
+    }
+
+    /**
+     * @param string $email
+     * @return string
+     */
+    private function addCCRecipients(string $email): string
+    {
+        if (!empty($this->cc)) {
+            $ccList = [];
+            foreach ($this->cc as $recipient) {
+                $name = !empty($recipient['name']) ? $recipient['name'] : '';
+                $ccList[] = !empty($name) ? "$name <{$recipient['email']}>" : $recipient['email'];
+            }
+            $email .= "Cc: " . implode(', ', $ccList) . "\r\n";
+        }
+        return $email;
+    }
+
+    /**
+     * @param string $email
+     * @return string
+     */
+    private function addReplyToHeader(string $email): string
+    {
+        if (!empty($this->replyTo)) {
+            $email .= "Reply-To: {$this->replyTo}\r\n";
+        }
+        return $email;
+    }
+
+    /**
+     * @param string $senderName
+     * @param string $senderEmail
+     * @param string $receiverName
+     * @param string $receiverEmail
+     * @return string
+     */
+    private function headersConstruction(string $senderName, string $senderEmail, string $receiverName, string $receiverEmail): string
+    {
+        $email = "Subject: {$this->subject}\r\n";
+        $email .= "From: {$senderName} <{$senderEmail}>\r\n";
+        $email .= "To: {$receiverName} <{$receiverEmail}>\r\n";
+        return $email;
     }
 }
