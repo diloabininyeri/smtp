@@ -9,6 +9,10 @@ Install the package via Composer:
 ```sh
 composer require zeus/email
 ```
+or updated code
+```console
+composer require zeus/email:dev-main
+```
 
 ### 🔧 Configuration
 
