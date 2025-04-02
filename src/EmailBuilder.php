@@ -3,6 +3,8 @@
 namespace Zeus\Email;
 
 
+use DateTime;
+use DateTimeInterface;
 use InvalidArgumentException;
 
 class EmailBuilder
@@ -299,7 +301,7 @@ class EmailBuilder
      * @param string $email
      * @return $this
      */
-    public function forceTo(string $email):self
+    public function forceTo(string $email): self
     {
         $this->forceTo = $email;
         return $this;
@@ -319,5 +321,33 @@ class EmailBuilder
         $email .= "From: {$senderName} <{$senderEmail}>\r\n";
         $email .= "To: {$receiverName} <{$receiverEmail}>\r\n";
         return $email;
+    }
+
+    /**
+     * @param DateTime $sendTime
+     * @return $this
+     */
+    public function scheduleAt(DateTime $sendTime): self
+    {
+        $this->addHeader('X-Scheduled-Time', $sendTime->format(DateTimeInterface::RFC2822));
+        return $this;
+    }
+
+    /***
+     * @param Delay $delay
+     * @return $this
+     */
+    public function setDelay(Delay $delay): self
+    {
+        return $this->scheduleAt($delay->getDateTime());
+    }
+
+    /**
+     * @return $this
+     */
+    public function addMailerInfo(): self
+    {
+        $this->addHeader('X-Mailer', 'php/' . PHP_VERSION);
+        return $this;
     }
 }

@@ -155,8 +155,8 @@ class Mail
         $this->commandSender->sendCommandAndGetResponse("RCPT TO:<$this->to>");
         $this->commandSender->sendCommandAndGetResponse("DATA");
         $response = $this->commandSender->sendCommandAndGetResponse($emailBuilder->build($this->from, $this->to));
-        if ($response) {
-            ($this->afterClosure)();
+        if ($response && $this->afterClosure) {
+            ($this->afterClosure)($emailBuilder);
         }
         return $this->isSuccessResponse($response);
     }
