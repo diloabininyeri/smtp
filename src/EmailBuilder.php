@@ -16,7 +16,7 @@ class EmailBuilder
     private array $cc = [];
     private array $bcc = [];
 
-    private string $receiverEmail = '';
+    private string|BulkReceiver $receiverEmail = '';
     private string $senderEmail = '';
     private string $senderName = '';
     private string $receiverName = '';
@@ -25,6 +25,10 @@ class EmailBuilder
     private bool $isHtml = false;
 
     private ?string $forceTo = null;
+
+    private bool $dd = false;
+
+    private ?BulkReceiver $bulkReceiver = null;
 
     public function __construct()
     {
@@ -113,9 +117,13 @@ class EmailBuilder
         return $this->receiverEmail;
     }
 
-    public function setReceiverEmail(string $receiverEmail): self
+    public function setReceiverEmail(string|BulkReceiver $receiverEmail): self
     {
-        $this->receiverEmail = $receiverEmail;
+        if ($receiverEmail instanceof BulkReceiver) {
+            $this->bulkReceiver = $receiverEmail;
+        } else {
+            $this->receiverEmail = $receiverEmail;
+        }
         return $this;
     }
 
@@ -151,10 +159,7 @@ class EmailBuilder
             throw new InvalidArgumentException("Sender and receiver emails must be set");
         }
 
-        $senderName = $this->senderName ?: 'Sender';
-        $receiverName = $this->receiverName ?: 'Receiver';
-
-        $email = $this->headersConstruction($senderName, $senderEmail, $receiverName, $receiverEmail);
+        $email = $this->headersConstruction();
 
         $email = $this->addCCRecipients($email);
         $email = $this->addBCCRecipients($email);
@@ -165,6 +170,7 @@ class EmailBuilder
 
         $email .= ".\r\n"; // Termination mark
 
+        $this->callIfDefinedDd($email);
         return $email;
     }
 
@@ -307,21 +313,52 @@ class EmailBuilder
         return $this;
     }
 
+    public function dd(): self
+    {
+        $this->dd = true;
+        return $this;
+    }
+
     /**
-     * @param string $senderName
-     * @param string $senderEmail
-     * @param string $receiverName
-     * @param string $receiverEmail
+     * @param string $email
+     * @return void
+     */
+    public function callIfDefinedDd(string $email): void
+    {
+        if ($this->dd) {
+            if (function_exists('dd')) {
+                dd($email);
+            } else {
+                die($email);
+            }
+        }
+    }
+
+    /**
      * @return string
      */
-    private function headersConstruction(string $senderName, string $senderEmail, string $receiverName, string $receiverEmail): string
+    private function headersConstruction(): string
     {
+
+        $senderName = $this->senderName;
+        $senderEmail = $this->senderEmail;
+        $receiverName = $this->receiverName;
+        $receiverEmail = $this->receiverEmail;
+
         $receiverEmail = $this->forceTo ?: $receiverEmail;
+
         $email = "Subject: {$this->subject}\r\n";
         $email .= "From: {$senderName} <{$senderEmail}>\r\n";
-        $email .= "To: {$receiverName} <{$receiverEmail}>\r\n";
+
+        if ($this->bulkReceiver) {
+            $email .= "To: {$this->bulkReceiver}\r\n"; // This will invoke __toString of BulkReceiver
+        } else {
+            $email .= "To: {$receiverName} <{$receiverEmail}>\r\n";
+        }
+
         return $email;
     }
+
 
     /**
      * @param DateTime $sendTime
@@ -349,5 +386,14 @@ class EmailBuilder
     {
         $this->addHeader('X-Mailer', 'php/' . PHP_VERSION);
         return $this;
+    }
+
+    /**
+     * @param BulkReceiver $bulkReceiver
+     * @return void
+     */
+    public function setBulkReceivers(BulkReceiver $bulkReceiver): void
+    {
+        $this->bulkReceiver = $bulkReceiver;
     }
 }

@@ -25,6 +25,7 @@ class Mail
      */
     private ?string $from = null;
 
+
     private static ?string $forceTo = null;
 
     private ?Closure $beforeClosure = null;
@@ -33,10 +34,10 @@ class Mail
 
     private ?string $logFile = null;
 
-    /**
-     * @param string $to
+    /***
+     * @param string|BulkReceiver $to
      */
-    public function __construct(private readonly string $to)
+    public function __construct(private readonly string|BulkReceiver $to)
     {
         $this->commandSender = new CommandSender(self::$smtpAuthenticator);
     }
@@ -60,15 +61,15 @@ class Mail
 
 
     /**
-     * @param string $email
+     * @param string|BulkReceiver $email
      * @return self
      */
-    public static function to(string $email): self
+    public static function to(string|BulkReceiver $email): self
     {
         return new static(static::$forceTo ?: $email);
     }
 
-    /**
+    /****
      * @param string $email
      * @return $this
      */
