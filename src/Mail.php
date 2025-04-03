@@ -52,6 +52,7 @@ class Mail
     }
 
     /**
+     * @noinspection PhpUnused
      * @return SmtpAuthenticator
      */
     public static function getSmtpAuthenticator(): SmtpAuthenticator
@@ -80,14 +81,14 @@ class Mail
     }
 
     /**
-     * @param EmailInterface $email
+     * @param EmailFactoryInterface $email
      * @return bool
      */
-    public function send(EmailInterface $email): bool
+    public function send(EmailFactoryInterface $email): bool
     {
         if ($this->logFile) {
             try {
-                return $this->processEmail($email);
+                return $this->prepareAndSendEmail($email);
             } catch (Throwable $e) {
                 $trace = $e->getTrace()[0];
                 error_log($e->getMessage() . PHP_EOL, 3, $this->logFile);
@@ -95,7 +96,7 @@ class Mail
                 return false;
             }
         }
-        return $this->processEmail($email);
+        return $this->prepareAndSendEmail($email);
     }
 
     /**
@@ -108,6 +109,11 @@ class Mail
         return !empty($response) && str_starts_with(trim($response), '2');
     }
 
+    /**
+     * @noinspection PhpUnused
+     * @param Closure $closure
+     * @return $this
+     */
     public function beforeSend(Closure $closure): self
     {
         $this->beforeClosure = $closure;
@@ -115,6 +121,7 @@ class Mail
     }
 
     /**
+     * @noinspection PhpUnused
      * @param Closure $closure
      * @return $this
      */
@@ -125,6 +132,7 @@ class Mail
     }
 
     /**
+     * @noinspection PhpUnused
      * @param string $email
      * @return void
      */
@@ -133,6 +141,11 @@ class Mail
         static::$forceTo = $email;
     }
 
+    /**
+     * @noinspection PhpUnused
+     * @param string $logFile
+     * @return $this
+     */
     public function logTo(string $logFile): self
     {
         $this->logFile = $logFile;
@@ -140,25 +153,51 @@ class Mail
     }
 
     /**
-     * @param EmailInterface $email
+     * @param EmailFactoryInterface $emailFactory
      * @return bool
      */
-    private function processEmail(EmailInterface $email): bool
+    private function prepareAndSendEmail(EmailFactoryInterface $emailFactory): bool
     {
-        $emailBuilder = new EmailBuilder();
-        $emailBuilder->setSenderEmail($this->from);
-        $emailBuilder->setReceiverEmail(static::$forceTo ?: $this->to);
-        $email->build($emailBuilder);
+        $emailBuilder = $this->buildEmailFromFactory($emailFactory);
+
         if ($this->beforeClosure) {
             ($this->beforeClosure)($emailBuilder);
         }
-        $this->commandSender->sendCommandAndGetResponse("MAIL FROM:<$this->from>");
-        $this->commandSender->sendCommandAndGetResponse("RCPT TO:<$this->to>");
-        $this->commandSender->sendCommandAndGetResponse("DATA");
-        $response = $this->commandSender->sendCommandAndGetResponse($emailBuilder->build($this->from, $this->to));
+
+        $smtpProtocolEmailString = $emailBuilder->build($this->from, $this->to);
+        $emailBuilder->callIfDefinedDd();
+
+        $response = $this->sendSmtpCommands($smtpProtocolEmailString);
+
         if ($response && $this->afterClosure) {
             ($this->afterClosure)($emailBuilder);
         }
         return $this->isSuccessResponse($response);
+    }
+
+    /**
+     * @param string $emailContent
+     * @return string
+     */
+    public function sendSmtpCommands(string $emailContent): string
+    {
+        $this->commandSender->sendCommandAndGetResponse("MAIL FROM:<$this->from>");
+        $this->commandSender->sendCommandAndGetResponse("RCPT TO:<$this->to>");
+        $this->commandSender->sendCommandAndGetResponse("DATA");
+
+        return $this->commandSender->sendCommandAndGetResponse($emailContent);
+    }
+
+    /**
+     * @param EmailFactoryInterface $emailFactory
+     * @return EmailBuilder
+     */
+    private function buildEmailFromFactory(EmailFactoryInterface $emailFactory): EmailBuilder
+    {
+        $emailBuilder = new EmailBuilder();
+        $emailBuilder->setSenderEmail($this->from);
+        $emailBuilder->setReceiverEmail(static::$forceTo ?: $this->to);
+        $emailFactory->build($emailBuilder);
+        return $emailBuilder;
     }
 }

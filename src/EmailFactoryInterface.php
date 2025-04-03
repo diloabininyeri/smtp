@@ -2,7 +2,10 @@
 
 namespace Zeus\Email;
 
-interface EmailInterface
+/**
+ *
+ */
+interface EmailFactoryInterface
 {
     public function build(EmailBuilder $builder);
 }

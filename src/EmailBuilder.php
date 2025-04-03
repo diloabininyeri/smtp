@@ -3,6 +3,7 @@
 namespace Zeus\Email;
 
 
+use Closure;
 use DateTime;
 use DateTimeInterface;
 use InvalidArgumentException;
@@ -28,6 +29,8 @@ class EmailBuilder
     private ?string $forceTo = null;
 
     private bool $dd = false;
+
+    private ?Closure $ddClosure = null;
 
     private ?BulkReceiver $bulkReceiver = null;
 
@@ -171,7 +174,7 @@ class EmailBuilder
 
         $email .= ".\r\n"; // Termination mark
 
-        $this->callIfDefinedDd($email);
+        $this->ddClosure= static fn() => $email;
         return $email;
     }
 
@@ -320,17 +323,16 @@ class EmailBuilder
         return $this;
     }
 
-    /**
-     * @param string $email
+    /***
      * @return void
      */
-    public function callIfDefinedDd(string $email): void
+    public function callIfDefinedDd(): void
     {
         if ($this->dd) {
             if (function_exists('dd')) {
-                dd($email);
+                dd(call_user_func($this->ddClosure));
             } else {
-                die($email);
+                die(call_user_func($this->ddClosure));
             }
         }
     }
@@ -340,7 +342,6 @@ class EmailBuilder
      */
     private function headersConstruction(): string
     {
-
         $senderName = $this->senderName;
         $senderEmail = $this->senderEmail;
         $receiverName = $this->receiverName;
