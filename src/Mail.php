@@ -32,7 +32,7 @@ class Mail
 
     private ?Closure $afterClosure = null;
 
-    private ?string $logFile = null;
+    private ?EmailLogInterface $log = null;
 
     /***
      * @param string|BulkReceiver $to
@@ -86,13 +86,11 @@ class Mail
      */
     public function send(EmailFactoryInterface $email): bool
     {
-        if ($this->logFile) {
+        if ($this->log) {
             try {
                 return $this->prepareAndSendEmail($email);
             } catch (Throwable $e) {
-                $trace = $e->getTrace()[0];
-                error_log($e->getMessage() . PHP_EOL, 3, $this->logFile);
-                error_log("File : {$trace['file']} ,line :{$trace['line']}" . PHP_EOL, 3, $this->logFile);
+                $this->writeLog($e);
                 return false;
             }
         }
@@ -141,14 +139,13 @@ class Mail
         static::$forceTo = $email;
     }
 
-    /**
-     * @noinspection PhpUnused
-     * @param string $logFile
+    /***
+     * @param EmailLogInterface $emailLog
      * @return $this
      */
-    public function logTo(string $logFile): self
+    public function logTo(EmailLogInterface $emailLog): self
     {
-        $this->logFile = $logFile;
+        $this->log = $emailLog;
         return $this;
     }
 
@@ -199,5 +196,16 @@ class Mail
         $emailBuilder->setReceiverEmail(static::$forceTo ?: $this->to);
         $emailFactory->build($emailBuilder);
         return $emailBuilder;
+    }
+
+    /**
+     * @param Throwable $e
+     * @return void
+     */
+    private function writeLog(Throwable $e): void
+    {
+        $trace = $e->getTrace()[0];
+        $message = $e->getMessage();
+        $this->log->log("Message:$message, File : {$trace['file']} ,line :{$trace['line']}\n" . PHP_EOL, 3);
     }
 }
