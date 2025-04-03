@@ -48,7 +48,7 @@ Mail::setSmtpAuthenticator($smtpAuthenticator); // Set it once
 Define your email class:
 
 ```php
-class WelcomeMail implements EmailInterface
+class WelcomeMail implements EmailFactoryInterface
 {
     public function build(EmailBuilder $builder): void
     {
@@ -107,7 +107,7 @@ To use `scheduleAt`, call it within the email building process and pass a valid 
 ### Example
 
 ```php
-class Payment implements EmailInterface
+class Payment implements EmailFactoryInterface
 {
     /**
      * @throws Exception
@@ -160,7 +160,7 @@ To use `setDelay`, simply call it within the email building process and pass a v
 ### Example
 
 ```php
-class Payment implements EmailInterface
+class Payment implements EmailFactoryInterface
 {
     /**
      * @throws Exception
@@ -206,7 +206,7 @@ To use the `BulkReceiver` class, you need to create an instance of it and add ea
 ### Example
 
 ```php
-class X implements EmailInterface
+class X implements EmailFactoryInterface
 {
     public function build(EmailBuilder $builder): void
     {
