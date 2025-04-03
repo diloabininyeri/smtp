@@ -6,6 +6,7 @@ namespace Zeus\Email;
 use DateTime;
 use DateTimeInterface;
 use InvalidArgumentException;
+use JetBrains\PhpStorm\ExpectedValues;
 
 class EmailBuilder
 {
@@ -395,5 +396,14 @@ class EmailBuilder
     public function setBulkReceivers(BulkReceiver $bulkReceiver): void
     {
         $this->bulkReceiver = $bulkReceiver;
+    }
+    /**
+     * @param Priority $priority
+     * @return $this
+     */
+    public function setPriority(#[ExpectedValues(valuesFromClass: Priority::class)] Priority $priority): self
+    {
+        $this->addHeader('X-Priority', $priority->value);
+        return $this;
     }
 }
