@@ -2,7 +2,7 @@
 
 namespace Zeus\Email;
 
-use Closure;
+
 use Throwable;
 
 /**
@@ -28,9 +28,15 @@ class Mail
 
     private static ?string $forceTo = null;
 
-    private ?Closure $beforeClosure = null;
+    /**
+     * @var null|callable
+     */
+    private $beforeEventCallback;
 
-    private ?Closure $afterClosure = null;
+    /**
+     * @var callable|null
+     */
+    private $afterEventCallback;
 
     private ?EmailLogInterface $log = null;
 
@@ -38,7 +44,7 @@ class Mail
      * @param string|BulkReceiver $to
      * @param EmailBuilder $emailBuilder
      */
-    public function __construct(private readonly string|BulkReceiver $to,private readonly EmailBuilder $emailBuilder=new EmailBuilder())
+    public function __construct(private readonly string|BulkReceiver $to, private readonly EmailBuilder $emailBuilder = new EmailBuilder())
     {
         $this->commandSender = new CommandSender(self::$smtpAuthenticator);
     }
@@ -110,23 +116,23 @@ class Mail
 
     /**
      * @noinspection PhpUnused
-     * @param Closure $closure
+     * @param callable(EmailBuilder $builder):void $callback
      * @return $this
      */
-    public function beforeSend(Closure $closure): self
+    public function beforeSend(callable $callback): self
     {
-        $this->beforeClosure = $closure;
+        $this->beforeEventCallback = $callback;
         return $this;
     }
 
     /**
      * @noinspection PhpUnused
-     * @param Closure $closure
+     * @param callable(EmailBuilder $builder):void $callback
      * @return $this
      */
-    public function afterSend(Closure $closure): self
+    public function afterSend(callable $callback): self
     {
-        $this->afterClosure = $closure;
+        $this->afterEventCallback = $callback;
         return $this;
     }
 
@@ -156,10 +162,10 @@ class Mail
      */
     private function prepareAndSendEmail(EmailFactoryInterface $emailFactory): bool
     {
-       $this->buildEmailFromFactory($emailFactory);
+        $this->buildEmailFromFactory($emailFactory);
 
-        if ($this->beforeClosure) {
-            ($this->beforeClosure)($this->emailBuilder);
+        if ($this->beforeEventCallback) {
+            ($this->beforeEventCallback)($this->emailBuilder);
         }
 
         $smtpProtocolEmailString = $this->emailBuilder->build($this->from, $this->to);
@@ -167,8 +173,8 @@ class Mail
 
         $response = $this->sendSmtpCommands($smtpProtocolEmailString);
 
-        if ($response && $this->afterClosure) {
-            ($this->afterClosure)($this->emailBuilder);
+        if ($response && $this->afterEventCallback) {
+            ($this->afterEventCallback)($this->emailBuilder);
         }
         return $this->isSuccessResponse($response);
     }
