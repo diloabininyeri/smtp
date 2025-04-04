@@ -181,6 +181,23 @@ class Payment implements EmailFactoryInterface
     }
 }
 ```
+of for debugging with the dd method
+```php
+class Payment implements EmailFactoryInterface
+{
+    /**
+     * @throws Exception
+     */
+    public function build(EmailBuilder $builder): void
+    {
+        $builder
+            ->setSubject("Welcome to Our Website")
+            ->setBody('Test a message');
+            ->setDelay(new Delay()->addHour(1)->addMinute(15))
+            ->dd();
+    }
+}
+```
 
 In this example, the email will be delayed for **1 hour and 15 minutes** before being sent. You can adjust the delay time by chaining additional `addHour()`, `addMinute()`, or `addSecond()` methods to customize the delay duration.
 
