@@ -174,7 +174,8 @@ class EmailBuilder
 
         $email .= ".\r\n"; // Termination mark
 
-        $this->ddClosure= static fn() => $email;
+        $this->setDdClosure($email);
+
         return $email;
     }
 
@@ -317,9 +318,25 @@ class EmailBuilder
         return $this;
     }
 
-    public function dd(): self
+    /**
+     * @param callable|null $callback
+     * @return $this
+     */
+    public function dd(?callable $callback = null): self
     {
         $this->dd = true;
+
+        if(!$callback) {
+            return $this;
+        }
+
+        $this->ddClosure ??= static function (string $content)use($callback) {
+            if (function_exists('dd')) {
+                return dd($callback($content));
+            }
+            $callback($content);
+            die();
+        };
         return $this;
     }
 
@@ -398,6 +415,7 @@ class EmailBuilder
     {
         $this->bulkReceiver = $bulkReceiver;
     }
+
     /**
      * @param Priority $priority
      * @return $this
@@ -406,5 +424,19 @@ class EmailBuilder
     {
         $this->addHeader('X-Priority', $priority->value);
         return $this;
+    }
+
+    /**
+     * @param string $email
+     * @return void
+     */
+    private function setDdClosure(string $email): void
+    {
+        if ($this->ddClosure) {
+            $ddClosure = $this->ddClosure;
+            $this->ddClosure = static fn() => $ddClosure($email);
+        } else {
+            $this->ddClosure = static fn() => $email;
+        }
     }
 }
