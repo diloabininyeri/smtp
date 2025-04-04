@@ -80,10 +80,18 @@ and extra features
 
 ```php
 
+class Logger implements \Zeus\Email\EmailLogInterface
+{
+    public function log(string $message,int $level)
+    {
+       //log operations
+    }
+}
+
 $mail = Mail::to('aslan@gmail.com');
 
 $mail->from('berxudar@gmail.com')
-    ->logTo(__DIR__ . '/email.log')
+    ->logTo(new Logger())
     ->beforeSend(function (EmailBuilder $builder) {
         $builder->addCc('test@gmail.com');
     })

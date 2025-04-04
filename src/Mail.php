@@ -34,10 +34,11 @@ class Mail
 
     private ?EmailLogInterface $log = null;
 
-    /***
+    /****
      * @param string|BulkReceiver $to
+     * @param EmailBuilder $emailBuilder
      */
-    public function __construct(private readonly string|BulkReceiver $to)
+    public function __construct(private readonly string|BulkReceiver $to,private readonly EmailBuilder $emailBuilder=new EmailBuilder())
     {
         $this->commandSender = new CommandSender(self::$smtpAuthenticator);
     }
@@ -155,19 +156,19 @@ class Mail
      */
     private function prepareAndSendEmail(EmailFactoryInterface $emailFactory): bool
     {
-        $emailBuilder = $this->buildEmailFromFactory($emailFactory);
+       $this->buildEmailFromFactory($emailFactory);
 
         if ($this->beforeClosure) {
-            ($this->beforeClosure)($emailBuilder);
+            ($this->beforeClosure)($this->emailBuilder);
         }
 
-        $smtpProtocolEmailString = $emailBuilder->build($this->from, $this->to);
-        $emailBuilder->callIfDefinedDd();
+        $smtpProtocolEmailString = $this->emailBuilder->build($this->from, $this->to);
+        $this->emailBuilder->callIfDefinedDd();
 
         $response = $this->sendSmtpCommands($smtpProtocolEmailString);
 
         if ($response && $this->afterClosure) {
-            ($this->afterClosure)($emailBuilder);
+            ($this->afterClosure)($this->emailBuilder);
         }
         return $this->isSuccessResponse($response);
     }
@@ -176,7 +177,7 @@ class Mail
      * @param string $emailContent
      * @return string
      */
-    public function sendSmtpCommands(string $emailContent): string
+    private function sendSmtpCommands(string $emailContent): string
     {
         $this->commandSender->sendCommandAndGetResponse("MAIL FROM:<$this->from>");
         $this->commandSender->sendCommandAndGetResponse("RCPT TO:<$this->to>");
@@ -187,15 +188,13 @@ class Mail
 
     /**
      * @param EmailFactoryInterface $emailFactory
-     * @return EmailBuilder
+     * @return void
      */
-    private function buildEmailFromFactory(EmailFactoryInterface $emailFactory): EmailBuilder
+    private function buildEmailFromFactory(EmailFactoryInterface $emailFactory): void
     {
-        $emailBuilder = new EmailBuilder();
-        $emailBuilder->setSenderEmail($this->from);
-        $emailBuilder->setReceiverEmail(static::$forceTo ?: $this->to);
-        $emailFactory->build($emailBuilder);
-        return $emailBuilder;
+        $this->emailBuilder->setSenderEmail($this->from);
+        $this->emailBuilder->setReceiverEmail(static::$forceTo ?: $this->to);
+        $emailFactory->build($this->emailBuilder);
     }
 
     /**
